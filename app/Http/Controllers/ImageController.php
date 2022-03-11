@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Image;
 use Illuminate\Http\Request;
 
 class ImageController extends Controller
@@ -15,10 +16,41 @@ class ImageController extends Controller
     public function show()
     {
         //return all images
+        return Image::latest()->pluck('name')->toArray();
     }
 
     public function store(Request $request)
     {
-        //save image to DB
+        // return response()->json(['error'=>'Custom error'],500);
+        //validate the incomming file
+        if (!$request->hasFile('image')) {
+            return response()->json(['error'=>'There is no image present'], 400);
+        }
+
+        $request->validate([
+            'image'=> 'required|file|image|mimes:jpg,png'
+        ]);
+
+
+        //save image in storage
+        $path = $request->file('image')->store('public/images');
+
+        if(!$path){
+            return response()->json(['error'=>'The file could not be saved'], 500);
+        }
+
+        $uploaded_file = $request->file('image');
+
+
+        //create image model
+        $image = Image::create([
+            'name'=> $uploaded_file->hashName(),
+            'extension'=>$uploaded_file->extension(),
+            'size'=>$uploaded_file->getSize()
+        ]);
+
+        //return that image model back to the frontend
+
+        return $image->name;
     }
 }

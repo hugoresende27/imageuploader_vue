@@ -1,4 +1,7 @@
 <template>
+
+
+<div> 
     <div class="mt-4">
         <!-- <h2 class="text-xl text-center">
             {{message}}
@@ -9,10 +12,12 @@
             ref="pond"
             class-name="my-pond"
             label-idle="Drop or choose images here..."
-            server="/upload"
+            
             @init="filepondInitialized"
            
-            accepted-file-types="image/*" 
+            accepted-file-types="image/jpg, image/png" 
+            @processfile ="handleProcessFile"
+            max-file-size="1MB"
         />
 
         <!-- <vue-file
@@ -20,26 +25,60 @@
             ref="pond"
             class-name="my-pond"
             label-idle="Drop or choose images here..."
-            server="/upload"
+            server="/uploads"
         /> -->
 
 
     </div>
+    <div class="mt-8 mb-24">
+        <h3 class="text-2xl font-medium text-center">Image Gallery</h3>
+            <div class="grid grid-cols-3 gap-2 justify-evenly mt-4">
+                <div v-for="(image,index) in images" :key="index">
+                    <img :src="'/storage/images/'+image">
+                </div>
+
+            </div>
+    
+    </div>
+</div>
 </template>
 
 <script>
 
-import vueFilePond from 'vue-filepond';
+import vueFilePond, { setOptions } from 'vue-filepond';
 
 import "filepond/dist/filepond.min.css";
+
+import FilePondPluginFileValidateType from 'filepond-plugin-file-validate-type';
+import FilePondPluginFileValidateSize from 'filepond-plugin-file-validate-size';
+
+let serverMessage = {};
+
+setOptions({
+    server: {
+        process: {
+            url: '/uploads',
+            onerror: (response)=> {
+                serverMessage = JSON.parse(response);
+            },
+            headers: {
+                // 'X-CSRF-TOKEN' : document.head.querySelector('meta[name="csrf_token"]').content
+                'X-CSRF-TOKEN' : document.querySelector('meta[name="csrf_token"]')
+            }
+        }
+    },
+    labelFileProcessingError:()=> {
+        return serverMessage.error;
+    }
+});
 
 //para resolver 
 //[Vue warn]: Property "acceptedFileTypes" was accessed during render but is not defined on instance. 
 //   at <FilePond name="image" ref="pond" class-name="my-pond"  ... > 
 
-import FilePondPluginFileValidateType from 'filepond-plugin-file-validate-type';
 
-const FilePond = vueFilePond(FilePondPluginFileValidateType);
+
+const FilePond = vueFilePond(FilePondPluginFileValidateType, FilePondPluginFileValidateSize);
 // const FilePond = vueFilePond();
 
 export default {
@@ -52,13 +91,35 @@ export default {
     data() {
         return {
             // message: 'Hello, world!'
+            images: []
         }
+    },
+
+    mounted() {
+        axios.get('./images')
+            .then((response) => {
+                this.images = response.data;
+            })
+            .catch((error)=> {
+                console.log(error);
+            })
     },
 
     methods : {
         filepondInitialized(){
             console.log("Fileponde is ready to be used!");
             console.log('Filepond obj: ', this.$refs.pond);
+        },
+
+        handleProcessFile(error, file){
+            if (error) {
+                console.log(error);
+                return ;
+            }
+
+            //add file to array
+            console.log(file);
+            this.images.unshift(file.serverId);
         }
     }
     
